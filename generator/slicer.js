@@ -49,17 +49,17 @@ class Slicer {
         this.status("yellow");
     }
     /** adds a line of movement gcode with a speed */
-    addGcodeLine(gcode, speed) {
-        this.gcode += `${gcode} F${speed}\n`;
+    addGcodeLine(gcode, speed, comment="") {
+        this.gcode += `${gcode} F${speed} ; ${comment}\n`;
     }
     /** move extruder by the specified amount */
-    extrude(length, speed = this.extrudeSpeed) {
-        this.addGcodeLine(`G1 E${length}`, speed);
-        this.currentPosition.e += length;
+    extrude(e, speed = this.extrudeSpeed) {
+        this.addGcodeLine(`G1 E${e}`, speed, "extrude");
+        this.currentPosition.e += e;
     }
     /** move x, y, z axes with a speed */
     move(x = 0, y = 0, z = 0, speed = this.movementSpeed) {
-        this.addGcodeLine(`G0 X${x} Y${y} Z${z}`, speed);
+        this.addGcodeLine(`G0 X${x} Y${y} Z${z}`, speed, "move");
         this.currentPosition.z += z;
         this.currentPosition.x += x;
         this.currentPosition.y += y;

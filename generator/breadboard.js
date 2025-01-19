@@ -23,7 +23,7 @@ fontMaterial.color = new THREE.Color(0x000000);
 const mesh = new THREE.Mesh(fontGeometry, fontMaterial);
 
 // all of this shorthand is because I didn't want to have to type it all out every time
-const { Group: G, Triangle: T, Vector3: V, MeshMatcapMaterial, Mesh } = three;
+const { Group: G, Vector3: V, Mesh } = three;
 /** create a new vertice given an x, y, and z value */
 const v = (a, b, c) => new V(a, b, c);
 /** create a new triangle given 3 vertices */
@@ -115,15 +115,6 @@ export class Breadboard {
         this.#group = new G();
         this.insert_shell();
         let s = this.config.hole_spacing;
-        this.cursor = new Mesh(new three.PlaneGeometry(s, s), new THREE.MeshBasicMaterial({
-            color: 0xff0000,
-            transparent: true,
-            opacity: 0.5,
-            side: THREE.DoubleSide
-        }));
-        this.cursor.position.set(0, 0, 0.01);
-        this.cursor.visible = false;
-        this.#group.add(this.cursor);
         let power_rails = this.config.power_rails;
         let xOffset = 0;
         let yOffset = 0;
@@ -181,9 +172,37 @@ export class Breadboard {
         // hole floor
         g.push(q(v(x + ip, y + ip, -id), v(x + s - ip, y + ip, -id), v(x + s - ip, y + s - ip, -id), v(x + ip, y + s - ip, -id))); // floor
         this.#holes.push({ x, y, width: s, height: s });
+
+        this.#face_plate_holes.push(q(
+            v(x + op, y + op, 0.1),
+            v(x + op, y + s - op, 0.1),
+            v(x + s - op, y + s - op, 0.1),
+            v(x + s - op, y + op, 0.1)
+        ));
         return g;
     }
-
+    #face_plate = [];
+    #face_plate_holes = [];
+    /** @type {THREE.Mesh} */
+    get face_plate() {
+        console.log(this.#face_plate);
+        let plate = new Mesh(BufferGeometryUtils.mergeGeometries(this.#face_plate), new THREE.MeshBasicMaterial(({
+            color: 0xffffff,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0,
+        })));
+        let holes = new Mesh(BufferGeometryUtils.mergeGeometries(this.#face_plate_holes), new THREE.MeshBasicMaterial(({
+            color: 0x0000ff,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.3,
+        })));
+        let group = new G();
+        group.add(plate);
+        group.add(holes);
+        return group;
+    }
     // done
     insert_shell() {
         console.group("shell");
@@ -210,6 +229,12 @@ export class Breadboard {
         width += r * s * p;
         width += (p - 1) * ss * s;
         g.push(q(v(0, 0, -t), v(0, length, -t), v(width, length, -t), v(width, 0, -t))); // floor
+        let mat = material.clone();
+        mat.color = new THREE.Color(0xffffff);
+        mat.side = THREE.DoubleSide;
+        mat.transparent = true;
+        mat.opacity = 0.6;
+        this.#face_plate.push(q(v(0, 0, 0), v(0, length, 0), v(width, length, 0), v(width, 0, 0))); // face plate
         g.push(q(v(0, 0, 0), v(0, length, 0), v(0, length, -t), v(0, 0, -t))); // left wall
         g.push(q(v(0, length, 0), v(width, length, 0), v(width, length, -t), v(0, length, -t))); // top wall
         g.push(q(v(width, length, 0), v(width, 0, 0), v(width, 0, -t), v(width, length, -t))); // right wall
@@ -354,8 +379,11 @@ export class Breadboard {
         // console.log("select", round(x), round(y));
         let hole = this.#holes.find(h => (h.x <= x) && (h.x + h.width >= x) && (h.y <= y) && (h.y + h.height >= y));
         if (hole) {
-            this.cursor.position.set(hole.x + hole.width / 2, hole.y + hole.height / 2, 0.01);
-            this.cursor.visible = true;
+            // let world_pos = this.cursor.getWorldPosition(new V());
+            // world_pos.z = 0.01;
+            // console.log(this.cursor.worldToLocal(world_pos).z);
+            // this.cursor.position.set(hole.x + hole.width / 2, hole.y + hole.height / 2, this.cursor.worldToLocal(world_pos).z);
+            // this.cursor.visible = true;
             this.selected_hole = hole;
         } else {
             this.deselect_hole();
@@ -363,7 +391,7 @@ export class Breadboard {
     }
 
     deselect_hole() {
-        this.cursor.visible = false;
+        // this.cursor.visible = false;
         this.selected_hole = null;
     }
 }

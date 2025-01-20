@@ -1,35 +1,36 @@
 /** @typedef {import("./types").BreadboardConfig} BreadboardConfig */
-import * as three from "three";
+import * as THREE from "three";
 import { BufferGeometryUtils, FontLoader as FL, Font, TextGeometry } from "three/examples/jsm/Addons.js";
-const Three = three;
-const THREE = three;
+import { scene } from "./index.js";
 
-const material = new three.MeshMatcapMaterial({
-    matcap: new three.TextureLoader().load("/generator/matcap-porcelain-white.jpg"),
-    side: three.FrontSide,
-    // side: three.DoubleSide,
+const material = new THREE.MeshMatcapMaterial({
+    matcap: new THREE.TextureLoader().load("/generator/matcap-porcelain-white.jpg"),
+    side: THREE.FrontSide,
 });
 /** @type {Font} */
 const font = await new Promise(resolve => new FL().load("res/roboto_black_regular.typeface.json", function (font) {
     resolve(font);
 }));
-const fontGeometry = new TextGeometry("0123456789", {
-    font: font,
-    size: 2.54,
-    depth: 0.01,
-});
 const fontMaterial = material.clone();
 fontMaterial.color = new THREE.Color(0x000000);
-const mesh = new THREE.Mesh(fontGeometry, fontMaterial);
+setTimeout(function () { // testing 3d font
+    const fontGeometry = new TextGeometry("0123456789", {
+        font: font,
+        size: 2.54,
+        depth: 0.1,
+    });
+    const mesh = new THREE.Mesh(fontGeometry, fontMaterial);
+    // scene.add(mesh);
+});
 
 // all of this shorthand is because I didn't want to have to type it all out every time
-const { Group: G, Vector3: V, Mesh } = three;
+const { Group: G, Vector3: V, Mesh: M } = THREE;
 /** create a new vertice given an x, y, and z value */
 const v = (a, b, c) => new V(a, b, c);
 /** create a new triangle given 3 vertices */
 const t = (a, b, c) => {
-    const geometry = new three.BufferGeometry();
-    geometry.setAttribute("position", new three.BufferAttribute(new Float32Array([
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array([
         a.x, a.y, a.z, // vertex 1
         b.x, b.y, b.z, // vertex 2
         c.x, c.y, c.z, // vertex 3
@@ -41,11 +42,6 @@ const t = (a, b, c) => {
 const q = (a, b, c, d) => {
     let g = BufferGeometryUtils.mergeGeometries([t(a, b, c), t(a, c, d)])
     return g;
-}
-
-function lar(a) {
-    console.log(...arguments);
-    return a;
 }
 
 
@@ -95,7 +91,7 @@ export class Breadboard {
     };
     /** @type {BreadboardConfig} */
     config;
-    /** @type {three.Group} */
+    /** @type {THREE.Group} */
     #group;
     #holes = [];
     #g = [];
@@ -103,13 +99,10 @@ export class Breadboard {
     total_length = 0;
     cursor;
     selected_hole = null;
-    last_label = 0;
-    /**
-     * 
-     * @param {BreadboardConfig} config 
-     */
+    last_labels = 0;
+    /** @param {BreadboardConfig} config */
     constructor(config = {}) {
-        console.groupCollapsed("breadboard");
+        // console.groupCollapsed("breadboard");
         this.config = extend(copy(Breadboard.defaultConfig), copy(config || {}));
         this.module_length = Math.max(this.config.rows_per_section, this.config.power_rails.holes_per_section);
         this.#group = new G();
@@ -123,16 +116,16 @@ export class Breadboard {
             yOffset = i * this.module_length * s;
             this.insert_module(xOffset, yOffset);
         }
-        this.#group.add(new Mesh(BufferGeometryUtils.mergeGeometries(this.#g), material));
+        console.log(this.#g);
+        this.#group.add(new M(BufferGeometryUtils.mergeGeometries(this.#g), material));
+        this.#group.add(new M(BufferGeometryUtils.mergeGeometries(this.#tg), fontMaterial));
         this.total_length = this.module_length * this.config.num_sections * s;
         this.total_width = (power_rails.enabled ? 2 * (power_rails.num_cols * s + power_rails.main_spacing * s) : 0) + this.config.num_subsections * this.config.holes_per_row * s + (this.config.num_subsections - 1) * this.config.subsection_spacing * s;
-        console.groupEnd();
+        // console.groupEnd();
     }
     get object() {
         return this.#group;
     }
-    #xOffset = 0;
-    #yOffset = 0;
 
     /**
      * @param {number} xCoord hole x coordinate
@@ -186,26 +179,26 @@ export class Breadboard {
     /** @type {THREE.Mesh} */
     get face_plate() {
         console.log(this.#face_plate);
-        let plate = new Mesh(BufferGeometryUtils.mergeGeometries(this.#face_plate), new THREE.MeshBasicMaterial(({
-            color: 0xffffff,
+        // let plate = new M(BufferGeometryUtils.mergeGeometries(this.#face_plate), new THREE.MeshBasicMaterial(({
+        //     color: 0xffffff,
+        //     side: THREE.DoubleSide,
+        //     transparent: true,
+        //     opacity: 0,
+        // })));
+        let holes = new M(BufferGeometryUtils.mergeGeometries(this.#face_plate_holes), new THREE.MeshBasicMaterial(({
+            color: 0x0000ff,
             side: THREE.DoubleSide,
             transparent: true,
             opacity: 0,
         })));
-        let holes = new Mesh(BufferGeometryUtils.mergeGeometries(this.#face_plate_holes), new THREE.MeshBasicMaterial(({
-            color: 0x0000ff,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.3,
-        })));
         let group = new G();
-        group.add(plate);
+        // group.add(plate);
         group.add(holes);
-        return group;
+        return holes;
     }
     // done
     insert_shell() {
-        console.group("shell");
+        // console.group("shell");
         let {
             hole_spacing: s,
             board_thickness: t,
@@ -239,10 +232,10 @@ export class Breadboard {
         g.push(q(v(0, length, 0), v(width, length, 0), v(width, length, -t), v(0, length, -t))); // top wall
         g.push(q(v(width, length, 0), v(width, 0, 0), v(width, 0, -t), v(width, length, -t))); // right wall
         g.push(q(v(width, 0, 0), v(0, 0, 0), v(0, 0, -t), v(width, 0, -t))); // bottom wall
-        let mesh = new Mesh(BufferGeometryUtils.mergeGeometries(g), material.clone());
+        let mesh = new M(BufferGeometryUtils.mergeGeometries(g), material.clone());
         this.#group.add(mesh);
-        console.log("successfullly inserted shell");
-        console.groupEnd();
+        // console.log("successfullly inserted shell");
+        // console.groupEnd();
     }
 
     insert_module(xOffset, yOffset) {
@@ -254,18 +247,18 @@ export class Breadboard {
             },
         } = this;
         let x = 0;
-        if (enabled) x += lar(this.rail(xOffset + x, yOffset), "left rail");
-        if (enabled && num_subsections > 0) x += lar(this.rail_spacer(xOffset + x, yOffset), "left rail spacer");
+        if (enabled) x += this.rail(xOffset + x, yOffset);
+        if (enabled && num_subsections > 0) x += this.rail_spacer(xOffset + x, yOffset);
         for (let i = 0; i < num_subsections; i++) {
             if (i > 0) x += this.subsection_spacer(xOffset + x, yOffset);
-            x += this.subsection(xOffset + x, yOffset);
+            x += this.subsection(xOffset + x, yOffset, i);
         }
-        if (enabled && num_subsections > 0) x += lar(this.rail_spacer(xOffset + x, yOffset), "right rail spacer");
-        if (enabled) x += lar(this.rail(xOffset + x, yOffset), "right rail");
+        if (enabled && num_subsections > 0) x += this.rail_spacer(xOffset + x, yOffset);
+        if (enabled) x += this.rail(xOffset + x, yOffset);
     }
 
     rail(xOff, yOff) {
-        console.group("rail");
+        // console.group("rail");
         let {
             config: {
                 hole_spacing: s,
@@ -294,13 +287,13 @@ export class Breadboard {
                 this.#g.push(...this.hole(x, y, xOff, yOff + pad_length));
             }
         }
-        console.log("successfullly inserted rail");
-        console.groupEnd();
+        // console.log("successfullly inserted rail");
+        // console.groupEnd();
         return num_cols * s;
     }
 
     rail_spacer(xOff, yOff) {
-        console.group("rail spacer");
+        // console.group("rail spacer");
         let {
             config: {
                 hole_spacing: s,
@@ -314,13 +307,14 @@ export class Breadboard {
             v(xOff + main_spacing * s, yOff + module_length * s, 0),
             v(xOff, yOff + module_length * s, 0),
         ));
-        console.log("successfullly inserted rail spacer");
-        console.groupEnd();
+        // console.log("successfullly inserted rail spacer");
+        // console.groupEnd();
         return main_spacing * s;
     }
-
-    subsection(xOff, yOff) {
-        console.group("subsection");
+    last_labels = [];
+    #tg = [];
+    subsection(xOff, yOff, h_index) {
+        // console.group("subsection");
         let {
             config: {
                 hole_spacing: s,
@@ -345,17 +339,30 @@ export class Breadboard {
                 v(xOff, yOff + 2 * pad_length + s * rows_per_section, 0),
             )); // bottom spacer
         }
+        this.last_labels[h_index] = this.last_labels[h_index] || 1;
         for (let x = 0; x < holes_per_row; x++) {
             for (let y = 0; y < rows_per_section; y++) {
                 this.#g.push(...this.hole(x, y, xOff, yOff + pad_length));
+                if (x == holes_per_row - 1) {
+                    let label = this.last_labels[h_index];
+                    this.last_labels[h_index]++;
+                    let text = new TextGeometry(label.toString(), {
+                        font: font,
+                        size: 1.27,
+                        height: 0.1,
+                    });
+                    text.deleteAttribute("uv");
+                    text.translate(xOff + s * (x + 1), yOff + ((s / 2) - (1.27 / 2)) + y * s, 0);
+                    this.#tg.push(text);
+                }
             }
         }
-        console.log("successfullly inserted subsection");
-        console.groupEnd();
+        // console.log("successfullly inserted subsection");
+        // console.groupEnd();
         return holes_per_row * s;
     }
     subsection_spacer(xOff, yOff) {
-        console.group("subsection spacer");
+        // console.group("subsection spacer");
         let {
             config: {
                 hole_spacing: s,
@@ -370,8 +377,8 @@ export class Breadboard {
             v(xOff + subsection_spacing * s, yOff + module_length * s, 0),
             v(xOff, yOff + module_length * s, 0),
         ));
-        console.log("successfullly inserted subsection spacer");
-        console.groupEnd();
+        // console.log("successfullly inserted subsection spacer");
+        // console.groupEnd();
         return subsection_spacing * s;
     }
 

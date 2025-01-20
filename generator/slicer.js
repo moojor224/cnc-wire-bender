@@ -1,8 +1,8 @@
 // Slicer class derived from https://github.com/SphaeroX/Javascript-G-Code-Generator/blob/main/slicer.class.js
 
-import { Group, Mesh, Object3D, Sphere, SphereGeometry, Vector2, Vector3 } from "three";
-import { degToRad, radToDeg } from "three/src/math/MathUtils.js";
-import { material, scene } from "./index.js";
+import { Group, Mesh, Object3D, SphereGeometry, Vector2, Vector3 } from "three";
+import { radToDeg } from "three/src/math/MathUtils.js";
+import { scene } from "./index.js";
 
 /**
  * 
@@ -62,13 +62,6 @@ class Slicer {
     }
     /** move servo to angle. limited to 0-180 degrees */
     moveServo(angle) { this.gcode += `M280 P0 S${angle} ; move servo\n`; }
-    cutWire() {
-        this.comment("cut wire");
-        this.status("red");
-        this.moveServo(90);
-        this.moveServo(0);
-        this.status("yellow");
-    }
 
     /**
      * sets the color of the status light
@@ -96,18 +89,19 @@ class Slicer {
      * @param {number} b blue
      * @param {number} brightness brightness
      */
-    neopixel({ strip = 0, index = 0, r = 0, g = 0, b = 0, brightness = 80 }) {
-        this.gcode += `M150 S${strip} I${index} R${r} U${g} B${b} P${brightness} K\n`;
-    }
+    neopixel({ strip = 0, index = 0, r = 0, g = 0, b = 0, brightness = 80 }) { this.gcode += `M150 S${strip} I${index} R${r} U${g} B${b} P${brightness} K\n`; }
     enable_steppers() { this.gcode += "M17 ; enable stepper motors\n"; }
     disable_steppers() { this.gcode += "M18 ; disable stepper motors\n"; }
-
-    wait() {
-        this.comment("waiting for moves to finish");
-        this.gcode += "M400\n";
-    }
+    wait() { this.gcode += "M400 ; waiting for moves to finish\n"; }
     comment(text) { this.gcode += `; ${text}\n`; }
     fan(speed) { this.gcode += `\M106 S${speed}\n`; }
+    cutWire() {
+        this.comment("cut wire");
+        this.status("red");
+        this.moveServo(90);
+        this.moveServo(0);
+        this.status("yellow");
+    }
     /** end the slicing and run cleanup gcode */
     finish() {
         this.wait();
@@ -223,25 +217,14 @@ export function slice(positions) {
 
             let rotation_angle = radToDeg(angle2d(cur_end.getWorldPosition(new Vector3()), a2_end.getWorldPosition(new Vector3()), a2_start.getWorldPosition(new Vector3())));
             let bend_angle = radToDeg(angle3d(lines[i - 1].start, line.start, line.end));
-            // if (bend_angle != 0) {
-            //     // figure out if the bend is left or right
-            //     // rotate around y axis be angle/2
-            //     // if angle is not angle/2, flip the sign
-            //     // if angle is the same, do it again
-            // }
-            // console.log("rotate ", rotation_angle);
             slicer.move(rotation_angle); // rotate bender
-            // console.log("bend ", bend_angle);
             slicer.move(0, bend_angle); // bend bender
             slicer.move(0, -bend_angle); // un-bend bender
         }
-        // console.log("extrude", line.length);
         slicer.extrude(line.length);
     });
     slicer.finish();
     const gcode = slicer.getGcode();
-    // console.log(gcode);
-    // console.log(slicer);
     return gcode
 }
 
@@ -272,42 +255,3 @@ function angle2d(A, B, C) {
     let angle = Math.atan2(det, dotp);
     return angle;
 }
-/*
-wire shape:
-      \ 0
-       \
-        \
-         \
-2 --------\ 1
-\
- \
-  \
-   \
-    \ 3
-
-
-points:
-0: -1, 1, 0
-1: 0, 0, 1
-2: 0, 0, 3
-3: 1, -1, 2
-
-bend n is point n-1 to point n+1
-
-
-bend 0 is easy, just extrude the length of wire,
-bend 1 should also be easy, just bend the wire at the angle of the first bend (angle 0,1,2)
-
-to figure out bend 2:
-move line 0,1 to where 1 matches with point 2, find the angle of 0,1/2,3, this difference should be the bending jig angle
-find the angle of 1,2,3. this should be bending angle amount
-
-to figure out bend 3:
-move line 1,2 to where 2 matches with point 3, find the angle of 1,2/3,4, this difference should be the bending jig angle
-find the angle of 2,3,4. this should be bending angle amount
-
-etc.
-last bend should just be extrude the length
-
-*/
-

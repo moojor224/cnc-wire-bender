@@ -2,6 +2,9 @@
 
 ## Repository layout
 
+### firmware
+a fork of the Marlin 3d printer firmware, configured for the bigtreetech skr v1.4 control board with an ender 3 v2 display
+
 ### generator
 a three.js-based interactive wire router and gcode generator
 

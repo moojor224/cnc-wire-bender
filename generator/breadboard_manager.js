@@ -10,7 +10,7 @@ import { getLocalStorage } from "./index.js";
 const layer_offset = 0.1;
 const material = new THREE.MeshMatcapMaterial({
     color: 0xf9e94d,
-    matcap: new THREE.TextureLoader().load("/generator/matcap-porcelain-white.jpg"),
+    matcap: new THREE.TextureLoader().load("/cnc-wire-bender/matcap-porcelain-white.jpg"),
     side: THREE.FrontSide,
 });
 /** material to use for the wire */

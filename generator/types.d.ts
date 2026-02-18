@@ -39,6 +39,18 @@ export type BreadboardConfig = {
     board_thickness: number;
     /** settings for labels */
     labels: LabelConfig;
+    /** repeat the whole breadboard x times horizontally
+     * @default 1 */
+    num_breadboards_x: number;
+    /** repeat the whole breadboard y times vertically
+     * @default 1 */
+    num_breadboards_y: number;
+    /** horizontal number of holes between breadboards
+     * @default 2 */
+    breadboard_x_gap: number;
+    /** vertical number of holes between breadboards
+     * @default 2.5 */
+    breadboard_y_gap: number;
 };
 
 type PowerRailConfig = {

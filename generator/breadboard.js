@@ -49,7 +49,6 @@ function extend(target, source) {
     Object.entries(target).forEach(([tKey, tValue]) => {
         if (source.hasOwnProperty(tKey)) {
             if (typeof tValue === "object" && !Array.isArray(tValue)) {
-                console.log("extending", tKey, tValue, source[tKey]);
                 extend(tValue, source[tKey]);
             } else {
                 target[tKey] = source[tKey];
@@ -88,6 +87,10 @@ export class Breadboard {
             start: 0,
             increment: 5,
         },
+        num_breadboards_x: 1,
+        num_breadboards_y: 1,
+        breadboard_x_gap: 2,
+        breadboard_y_gap: 2.5
     };
     /** @type {BreadboardConfig} */
     config;
@@ -102,26 +105,86 @@ export class Breadboard {
     last_labels = 0;
     /** @param {BreadboardConfig} config */
     constructor(config = {}) {
-        // console.groupCollapsed("breadboard");
         this.config = extend(copy(Breadboard.defaultConfig), copy(config || {}));
         this.module_length = Math.max(this.config.rows_per_section, this.config.power_rails.holes_per_section);
         this.#group = new G();
-        this.insert_shell();
         let s = this.config.hole_spacing;
         let power_rails = this.config.power_rails;
+        let individual_width = ((power_rails.enabled ?
+            2 * s * (power_rails.num_cols + power_rails.main_spacing) :
+            0) +
+            this.config.num_subsections * this.config.holes_per_row * s +
+            (this.config.num_subsections - 1) * this.config.subsection_spacing * s);
+        let individual_length = (this.module_length * this.config.num_sections * s);
+        this.total_length = individual_length * this.config.num_breadboards_y +
+            (this.config.breadboard_y_gap * s) * (this.config.num_breadboards_y);
+        this.total_width = individual_width * this.config.num_breadboards_x +
+            (this.config.breadboard_x_gap * s) * (this.config.num_breadboards_x);
+        this.insert_shell();
         let xOffset = 0;
         let yOffset = 0;
-        for (let i = 0; i < this.config.num_sections; i++) {
-            xOffset = 0;
-            yOffset = i * this.module_length * s;
-            this.insert_module(xOffset, yOffset);
+        const t = this.config.board_thickness;
+        const xmax = this.config.num_breadboards_x;
+        const ymax = this.config.num_breadboards_y;
+        const xgap = this.config.breadboard_x_gap;
+        const ygap = this.config.breadboard_y_gap;
+        for (let x = 0; x < xmax; x++) {
+            for (let y = 0; y < ymax; y++) {
+                this.last_labels = [];
+                for (let i = 0; i < this.config.num_sections; i++) {
+                    xOffset = x * ((xgap * s) + individual_width) + xgap * s / 2;
+                    yOffset = i * this.module_length * s + y * ((ygap * s) + individual_length) + ygap * s / 2;
+                    this.insert_module(xOffset, yOffset);
+                }
+                // insert horizontal spacers between breadboards
+                if (this.config.breadboard_y_gap > 0 && y > 0) {
+                    this.#g.push(q(
+                        v(xOffset, ygap * s / 2 + (ygap * s * (y - 1)) + y * individual_length, 0),
+                        v(xOffset + xgap * s * (x == xmax - 1 ? 0 : 1) + individual_width, ygap * s / 2 + (ygap * s * (y - 1)) + y * individual_length, 0),
+                        v(xOffset + xgap * s * (x == xmax - 1 ? 0 : 1) + individual_width, ygap * s / 2 + (ygap * s * (y - 1)) + y * individual_length + this.config.breadboard_y_gap * s, 0),
+                        v(xOffset, ygap * s / 2 + (ygap * s * (y - 1)) + y * individual_length + ygap * s, 0),
+                    ));
+                }
+            }
+            // insert vertical spacers between breadboards
+            if (this.config.breadboard_x_gap > 0 && x > 0) {
+                console.log("inserting spacer");
+                this.#g.push(q(
+                    v(xgap * s / 2 + (xgap * s * (x - 1)) + x * individual_width + xgap * s, ygap * s / 2, 0),
+                    v(xgap * s / 2 + (xgap * s * (x - 1)) + x * individual_width + xgap * s, ygap * s / 2 + this.total_length - ygap * s, 0),
+                    v(xgap * s / 2 + (xgap * s * (x - 1)) + x * individual_width, ygap * s / 2 + this.total_length - ygap * s, 0),
+                    v(xgap * s / 2 + (xgap * s * (x - 1)) + x * individual_width, ygap * s / 2, 0),
+                ));
+            }
         }
-        console.log(this.#g);
+        this.#g.push(
+            q(
+                v(0, 0, 0),
+                v(this.total_width, 0, 0),
+                v(this.total_width, ygap * s / 2, 0),
+                v(0, ygap * s / 2, 0)
+            ),
+            q(
+                v(0, ygap * s / 2, 0),
+                v(xgap * s / 2, ygap * s / 2, 0),
+                v(xgap * s / 2, this.total_length, 0),
+                v(0, this.total_length, 0)
+            ),
+            q(
+                v(this.total_width, this.total_length, 0),
+                v(this.total_width - xgap * s / 2, this.total_length, 0),
+                v(this.total_width - xgap * s / 2, 0, 0),
+                v(this.total_width, 0, 0)
+            ),
+            q(
+                v(0, ygap * s / -2 + this.total_length, 0),
+                v(this.total_width, ygap * s / -2 + this.total_length, 0),
+                v(this.total_width, this.total_length, 0),
+                v(0, this.total_length, 0)
+            ),
+        );
         this.#group.add(new M(BufferGeometryUtils.mergeGeometries(this.#g), material));
         this.#group.add(new M(BufferGeometryUtils.mergeGeometries(this.#tg), fontMaterial));
-        this.total_length = this.module_length * this.config.num_sections * s;
-        this.total_width = (power_rails.enabled ? 2 * (power_rails.num_cols * s + power_rails.main_spacing * s) : 0) + this.config.num_subsections * this.config.holes_per_row * s + (this.config.num_subsections - 1) * this.config.subsection_spacing * s;
-        // console.groupEnd();
     }
     get object() {
         return this.#group;
@@ -178,7 +241,6 @@ export class Breadboard {
     #face_plate_holes = [];
     /** @type {THREE.Mesh} */
     get face_plate() {
-        console.log(this.#face_plate);
         // let plate = new M(BufferGeometryUtils.mergeGeometries(this.#face_plate), new THREE.MeshBasicMaterial(({
         //     color: 0xffffff,
         //     side: THREE.DoubleSide,
@@ -198,31 +260,12 @@ export class Breadboard {
     }
     // done
     insert_shell() {
-        // console.group("shell");
-        let {
-            hole_spacing: s,
-            board_thickness: t,
-            holes_per_row: r,
-            num_sections: m,
-            num_subsections: p,
-            subsection_spacing: ss,
-            power_rails: {
-                enabled: e,
-                num_cols: c,
-                main_spacing: ms,
-            }
-        } = this.config;
-        let l = this.module_length;
-        let g = [];
-        let length = l * s * m;
-        let width = 0;
-        if (e) {
-            width += 2 * (c * s + ms * s);
-        }
-        width += r * s * p;
-        width += (p - 1) * ss * s;
+        const { board_thickness: t } = this.config;
+        const g = [];
+        const length = this.total_length;
+        const width = this.total_width;
+        const mat = material.clone();
         g.push(q(v(0, 0, -t), v(0, length, -t), v(width, length, -t), v(width, 0, -t))); // floor
-        let mat = material.clone();
         mat.color = new THREE.Color(0xffffff);
         mat.side = THREE.DoubleSide;
         mat.transparent = true;
@@ -234,8 +277,6 @@ export class Breadboard {
         g.push(q(v(width, 0, 0), v(0, 0, 0), v(0, 0, -t), v(width, 0, -t))); // bottom wall
         let mesh = new M(BufferGeometryUtils.mergeGeometries(g), material.clone());
         this.#group.add(mesh);
-        // console.log("successfullly inserted shell");
-        // console.groupEnd();
     }
 
     insert_module(xOffset, yOffset) {
@@ -258,7 +299,6 @@ export class Breadboard {
     }
 
     rail(xOff, yOff) {
-        // console.group("rail");
         let {
             config: {
                 hole_spacing: s,
@@ -287,13 +327,10 @@ export class Breadboard {
                 this.#g.push(...this.hole(x, y, xOff, yOff + pad_length));
             }
         }
-        // console.log("successfullly inserted rail");
-        // console.groupEnd();
         return num_cols * s;
     }
 
     rail_spacer(xOff, yOff) {
-        // console.group("rail spacer");
         let {
             config: {
                 hole_spacing: s,
@@ -307,14 +344,11 @@ export class Breadboard {
             v(xOff + main_spacing * s, yOff + module_length * s, 0),
             v(xOff, yOff + module_length * s, 0),
         ));
-        // console.log("successfullly inserted rail spacer");
-        // console.groupEnd();
         return main_spacing * s;
     }
     last_labels = [];
     #tg = [];
     subsection(xOff, yOff, h_index) {
-        // console.group("subsection");
         let {
             config: {
                 hole_spacing: s,
@@ -349,7 +383,7 @@ export class Breadboard {
                     let text = new TextGeometry(label.toString(), {
                         font: font,
                         size: 1.27,
-                        height: 0.1,
+                        depth: 0.1,
                     });
                     text.deleteAttribute("uv");
                     text.translate(xOff + s * (x + 1), yOff + ((s / 2) - (1.27 / 2)) + y * s, 0);
@@ -357,12 +391,9 @@ export class Breadboard {
                 }
             }
         }
-        // console.log("successfullly inserted subsection");
-        // console.groupEnd();
         return holes_per_row * s;
     }
     subsection_spacer(xOff, yOff) {
-        // console.group("subsection spacer");
         let {
             config: {
                 hole_spacing: s,
@@ -377,18 +408,14 @@ export class Breadboard {
             v(xOff + subsection_spacing * s, yOff + module_length * s, 0),
             v(xOff, yOff + module_length * s, 0),
         ));
-        // console.log("successfullly inserted subsection spacer");
-        // console.groupEnd();
         return subsection_spacing * s;
     }
 
     select_hole(x, y) {
-        // console.log("select", round(x), round(y));
         let hole = this.#holes.find(h => (h.x <= x) && (h.x + h.width >= x) && (h.y <= y) && (h.y + h.height >= y));
         if (hole) {
             // let world_pos = this.cursor.getWorldPosition(new V());
             // world_pos.z = 0.01;
-            // console.log(this.cursor.worldToLocal(world_pos).z);
             // this.cursor.position.set(hole.x + hole.width / 2, hole.y + hole.height / 2, this.cursor.worldToLocal(world_pos).z);
             // this.cursor.visible = true;
             this.selected_hole = hole;

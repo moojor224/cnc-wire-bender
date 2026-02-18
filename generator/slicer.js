@@ -26,7 +26,7 @@ function areVectorsParallel(v1, v2) {
 // export const dist = (v1, v2) => ((v1.x - v2.x) ** 2 + (v1.y - v2.y) ** 2 + (v1.z - v2.z) ** 2) ** 0.5;
 export const dist = (v1, v2) => new Vector3().subVectors(v1, v2).length();
 export const round = (num) => Math.round(num * 100) / 100;
-class Slicer {
+class Machine {
     constructor(movementSpeed = 3000, extrudeSpeed = 1000) {
         this.movementSpeed = movementSpeed;
         this.extrudeSpeed = extrudeSpeed;
@@ -43,12 +43,14 @@ class Slicer {
     }
     /** move extruder by the specified amount */
     extrude(e, speed = this.extrudeSpeed) {
+        console.log("extrude", e);
         e = round(e);
         this.addGcode(`G1 E${e}`, speed, "extrude");
         this.currentPosition.e += e;
     }
     /** move x, y, z axes with a speed */
     move(x = 0, y = 0, z = 0, speed = this.movementSpeed) {
+        console.log("move", { x, y, z, speed });
         function filter(axis, value) {
             return value === 0 ? "" : " " + axis + value;
         }
@@ -153,8 +155,8 @@ function zero(obj) {
  * @param {position[]} positions 
  */
 export function slice(positions) {
-    const slicer = new Slicer(6000);
-    slicer.enable_steppers();
+    const machine = new Machine(6000);
+    machine.enable_steppers();
     let lines = new Array(positions.length - 1).fill(0).map((_, i) => {
         let l = {
             start: new Vector3(...arrify(positions[i])),
@@ -176,15 +178,15 @@ export function slice(positions) {
         }
         return e;
     }).filter(e => e);
-    slicer.status("yellow"); // status: working
-    slicer.fan(180);
+    machine.status("yellow"); // status: working
+    machine.fan(180);
     lines.forEach((line, i) => {
-        slicer.comment("segment " + (i + 1));
+        machine.comment("segment " + (i + 1));
         if (i == 1) {
             let bend_angle = radToDeg(angle3d(line.start, line.end, lines[i + 1].end));
             // console.log("bend ", bend_angle);
-            slicer.move(0, bend_angle);
-            slicer.move(0, -bend_angle);
+            machine.move(0, bend_angle);
+            machine.move(0, -bend_angle);
         } else if (i > 1) {
             let origin = lines[i - 1].start.clone();
             let group = new Group();
@@ -217,14 +219,14 @@ export function slice(positions) {
 
             let rotation_angle = radToDeg(angle2d(cur_end.getWorldPosition(new Vector3()), a2_end.getWorldPosition(new Vector3()), a2_start.getWorldPosition(new Vector3())));
             let bend_angle = radToDeg(angle3d(lines[i - 1].start, line.start, line.end));
-            slicer.move(rotation_angle); // rotate bender
-            slicer.move(0, bend_angle); // bend bender
-            slicer.move(0, -bend_angle); // un-bend bender
+            machine.move(rotation_angle); // rotate bender
+            machine.move(0, bend_angle); // bend bender
+            machine.move(0, -bend_angle); // un-bend bender
         }
-        slicer.extrude(line.length);
+        machine.extrude(line.length);
     });
-    slicer.finish();
-    const gcode = slicer.getGcode();
+    machine.finish();
+    const gcode = machine.getGcode();
     return gcode
 }
 

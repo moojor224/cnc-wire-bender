@@ -8,7 +8,7 @@ const canvas = document.getElementById("scene");
 export const material = new THREE.MeshMatcapMaterial({
     color: 0xf9e94d,
     matcap: new THREE.TextureLoader().load("/generator/matcap-porcelain-white.jpg"),
-    side: THREE.FrontSide,
+    side: THREE.FrontSide
 });
 
 // stats
@@ -33,12 +33,11 @@ camera.position.set(45, 45, 45);
 // renderer
 const renderer = new THREE.WebGLRenderer({
     canvas: canvas,
-    alpha: true,
+    alpha: true
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x000000, 0);
 renderer.clear();
-
 
 // controls
 let controls = new OrbitControls(camera, renderer.domElement);
@@ -69,8 +68,7 @@ let run = true;
 
 // main animation loop
 function animate() {
-    if (run)
-        requestAnimationFrame(animate);
+    if (run) requestAnimationFrame(animate);
     try {
         controls.update();
         renderer.render(scene, camera);
@@ -88,30 +86,32 @@ function animate() {
         run = false;
         console.error(err);
     }
-};
+}
 
+window.addEventListener(
+    "resize",
+    function onWindowResize() {
+        let [width, height] = [window.innerWidth, window.innerHeight];
+        let {
+            position: { x, y, z },
+            zoom
+        } = camera;
+        renderer.setSize(width, height);
+        camera = makeCamera();
+        controls = new OrbitControls(camera, renderer.domElement);
+        camera.position.set(x, y, z);
+        camera.zoom = zoom;
+        renderer.render(scene, camera);
+        camera.updateProjectionMatrix();
+    },
+    false
+);
 
-window.addEventListener("resize", function onWindowResize() {
-    let [width, height] = [window.innerWidth, window.innerHeight];
-    let { position: { x, y, z }, zoom } = camera;
-    renderer.setSize(width, height);
-    camera = makeCamera();
-    controls = new OrbitControls(camera, renderer.domElement);
-    camera.position.set(x, y, z);
-    camera.zoom = zoom;
-    renderer.render(scene, camera);
-    camera.updateProjectionMatrix();
-}, false);
-
-
-
-
-canvas.addEventListener("mousemove", event => manager.mousemove(event, camera), false);
+canvas.addEventListener("mousemove", (event) => manager.mousemove(event, camera), false);
 
 canvas.addEventListener("mousedown", manager.mousedown);
 let linesgroup = manager.linesgroup;
 scene.add(linesgroup);
-
 
 canvas.addEventListener("mouseup", manager.mouseup);
 

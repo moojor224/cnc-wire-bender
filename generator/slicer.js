@@ -5,7 +5,7 @@ import { radToDeg } from "three/src/math/MathUtils.js";
 import { scene } from "./index.js";
 
 /**
- * 
+ *
  * @param {Vector3} v1
  * @param {Vector3} v2
  * @returns {boolean}
@@ -63,7 +63,9 @@ class Machine {
         this.currentPosition.z += z;
     }
     /** move servo to angle. limited to 0-180 degrees */
-    moveServo(angle) { this.gcode += `M280 P0 S${angle} ; move servo\n`; }
+    moveServo(angle) {
+        this.gcode += `M280 P0 S${angle} ; move servo\n`;
+    }
 
     /**
      * sets the color of the status light
@@ -72,10 +74,14 @@ class Machine {
     status(color) {
         this.comment("status: " + color);
         switch (color) {
-            case "blue": return this.neopixel({ b: 255 });
-            case "yellow": return this.neopixel({ r: 255, g: 255 });
-            case "red": return this.neopixel({ r: 255 });
-            case "green": return this.neopixel({ g: 255 });
+            case "blue":
+                return this.neopixel({ b: 255 });
+            case "yellow":
+                return this.neopixel({ r: 255, g: 255 });
+            case "red":
+                return this.neopixel({ r: 255 });
+            case "green":
+                return this.neopixel({ g: 255 });
         }
     }
 
@@ -91,12 +97,24 @@ class Machine {
      * @param {number} b blue
      * @param {number} brightness brightness
      */
-    neopixel({ strip = 0, index = 0, r = 0, g = 0, b = 0, brightness = 80 }) { this.gcode += `M150 S${strip} I${index} R${r} U${g} B${b} P${brightness} K\n`; }
-    enable_steppers() { this.gcode += "M17 ; enable stepper motors\n"; }
-    disable_steppers() { this.gcode += "M18 ; disable stepper motors\n"; }
-    wait() { this.gcode += "M400 ; waiting for moves to finish\n"; }
-    comment(text) { this.gcode += `; ${text}\n`; }
-    fan(speed) { this.gcode += `\M106 S${speed}\n`; }
+    neopixel({ strip = 0, index = 0, r = 0, g = 0, b = 0, brightness = 80 }) {
+        this.gcode += `M150 S${strip} I${index} R${r} U${g} B${b} P${brightness} K\n`;
+    }
+    enable_steppers() {
+        this.gcode += "M17 ; enable stepper motors\n";
+    }
+    disable_steppers() {
+        this.gcode += "M18 ; disable stepper motors\n";
+    }
+    wait() {
+        this.gcode += "M400 ; waiting for moves to finish\n";
+    }
+    comment(text) {
+        this.gcode += `; ${text}\n`;
+    }
+    fan(speed) {
+        this.gcode += `\M106 S${speed}\n`;
+    }
     cutWire() {
         this.comment("cut wire");
         this.status("red");
@@ -124,7 +142,9 @@ class Machine {
         console.log(this);
     }
     /** returns raw gcode */
-    getGcode() { return this.gcode; }
+    getGcode() {
+        return this.gcode;
+    }
 }
 
 /**
@@ -135,13 +155,13 @@ class Machine {
  */
 /**
  * converts a vector into an array of its components: {x,y,z} => [x,y,z]
- * @param {Vector3} v 
+ * @param {Vector3} v
  * @returns {number[]}
  */
 const arrify = (v) => [v.x, v.y, v.z];
 /**
- * 
- * @param {Object3D} obj 
+ *
+ * @param {Object3D} obj
  */
 function zero(obj) {
     let vec = new Vector3();
@@ -151,8 +171,8 @@ function zero(obj) {
     obj.position.set(...arrify(vec));
 }
 /**
- * 
- * @param {position[]} positions 
+ *
+ * @param {position[]} positions
  */
 export function slice(positions) {
     const machine = new Machine(6000);
@@ -161,23 +181,26 @@ export function slice(positions) {
         let l = {
             start: new Vector3(...arrify(positions[i])),
             end: new Vector3(...arrify(positions[i + 1])),
-            length: round(dist(positions[i], positions[i + 1])),
+            length: round(dist(positions[i], positions[i + 1]))
         };
         l.abs = new Vector3().subVectors(l.start, l.end);
         return l;
     });
-    lines = lines.map((e, i) => {
-        if (i > 1) {
-            let curLine = new Vector3().subVectors(e.start, e.end);
-            let lastLine = new Vector3().subVectors(lines[i - 1].start, lines[i - 1].end);
-            if (areVectorsParallel(curLine, lastLine)) { // combine parallel lines
-                lines[i - 1].end = e.end;
-                lines[i - 1].length += e.length;
-                return null;
+    lines = lines
+        .map((e, i) => {
+            if (i > 1) {
+                let curLine = new Vector3().subVectors(e.start, e.end);
+                let lastLine = new Vector3().subVectors(lines[i - 1].start, lines[i - 1].end);
+                if (areVectorsParallel(curLine, lastLine)) {
+                    // combine parallel lines
+                    lines[i - 1].end = e.end;
+                    lines[i - 1].length += e.length;
+                    return null;
+                }
             }
-        }
-        return e;
-    }).filter(e => e);
+            return e;
+        })
+        .filter((e) => e);
     machine.status("yellow"); // status: working
     machine.fan(180);
     lines.forEach((line, i) => {
@@ -217,7 +240,13 @@ export function slice(positions) {
             group.attach(a2_end);
             group.attach(cur_end);
 
-            let rotation_angle = radToDeg(angle2d(cur_end.getWorldPosition(new Vector3()), a2_end.getWorldPosition(new Vector3()), a2_start.getWorldPosition(new Vector3())));
+            let rotation_angle = radToDeg(
+                angle2d(
+                    cur_end.getWorldPosition(new Vector3()),
+                    a2_end.getWorldPosition(new Vector3()),
+                    a2_start.getWorldPosition(new Vector3())
+                )
+            );
             let bend_angle = radToDeg(angle3d(lines[i - 1].start, line.start, line.end));
             machine.move(rotation_angle); // rotate bender
             machine.move(0, bend_angle); // bend bender
@@ -227,7 +256,7 @@ export function slice(positions) {
     });
     machine.finish();
     const gcode = machine.getGcode();
-    return gcode
+    return gcode;
 }
 
 /**

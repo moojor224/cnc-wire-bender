@@ -4,12 +4,12 @@ import { BufferGeometryUtils, FontLoader as FL, Font, TextGeometry } from "three
 import { scene } from "./index.js";
 
 const material = new THREE.MeshMatcapMaterial({
-    matcap: new THREE.TextureLoader().load("/generator/matcap-porcelain-white.jpg"),
+    matcap: new THREE.TextureLoader().load("/cnc-wire-bender/matcap-porcelain-white.jpg"),
     side: THREE.FrontSide
 });
 /** @type {Font} */
 const font = await new Promise((resolve) =>
-    new FL().load("res/roboto_black_regular.typeface.json", function (font) {
+    new FL().load("/cnc-wire-bender/res/roboto_black_regular.typeface.json", function (font) {
         resolve(font);
     })
 );

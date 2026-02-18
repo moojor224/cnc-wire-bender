@@ -1,5 +1,15 @@
 {
-  "dependencies": {
-    "three": "^0.171.0"
-  }
+    "scripts": {
+        "pack": "webpack && node ./build.js"
+    },
+    "dependencies": {
+        "three": "^0.171.0"
+    },
+    "devDependencies": {
+        "copy": "^0.3.2",
+        "inline-source": "^8.0.3",
+        "svg-inline-loader": "^0.8.2",
+        "webpack": "^5.105.2",
+        "webpack-cli": "^6.0.1"
+    }
 }

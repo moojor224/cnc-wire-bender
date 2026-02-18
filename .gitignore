@@ -1,2 +1,4 @@
 /node_modules
 /favicon*.png
+/webpack-out
+/cnc-wire-bender
